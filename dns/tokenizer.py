@@ -559,6 +559,25 @@ class Tokenizer:
             raise dns.exception.SyntaxError('expecting an identifier')
         return token.value
 
+    def get_remaining(self, max_tokens=None):
+        """Return the remaining tokens on the line, until an EOL or EOF is seen.
+
+        max_tokens: If not None, stop after this number of tokens.
+
+        Returns a list of tokens.
+        """
+
+        tokens = []
+        while True:
+            token = self.get()
+            if token.is_eol_or_eof():
+                self.unget(token)
+                break
+            tokens.append(token)
+            if len(tokens) == max_tokens:
+                break
+        return tokens
+
     def concatenate_remaining_identifiers(self):
         """Read the remaining tokens on the line, which should be identifiers.
 
@@ -572,6 +591,7 @@ class Tokenizer:
         while True:
             token = self.get().unescape()
             if token.is_eol_or_eof():
+                self.unget(token)
                 break
             if not token.is_identifier():
                 raise dns.exception.SyntaxError

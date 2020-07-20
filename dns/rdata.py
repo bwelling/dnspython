@@ -364,13 +364,7 @@ class GenericRdata(Rdata):
             raise dns.exception.SyntaxError(
                 r'generic rdata does not start with \#')
         length = tok.get_int()
-        chunks = []
-        while 1:
-            token = tok.get()
-            if token.is_eol_or_eof():
-                break
-            chunks.append(token.value.encode())
-        hex = b''.join(chunks)
+        hex = tok.concatenate_remaining_identifiers().encode()
         data = binascii.unhexlify(hex)
         if len(data) != length:
             raise dns.exception.SyntaxError(
@@ -472,10 +466,13 @@ def from_text(rdclass, rdtype, tok, origin=None, relativize=True,
             #
             rdata = GenericRdata.from_text(rdclass, rdtype, tok, origin,
                                            relativize, relativize_to)
+            tok.get_eol()
             return from_wire(rdclass, rdtype, rdata.data, 0, len(rdata.data),
                              origin)
-    return cls.from_text(rdclass, rdtype, tok, origin, relativize,
-                         relativize_to)
+    rdata = cls.from_text(rdclass, rdtype, tok, origin, relativize,
+                          relativize_to)
+    tok.get_eol()
+    return rdata
 
 
 def from_wire_parser(rdclass, rdtype, parser, origin=None):
