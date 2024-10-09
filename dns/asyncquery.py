@@ -39,9 +39,9 @@ import dns.transaction
 from dns._asyncbackend import NullContext
 from dns.query import (
     BadResponse,
+    HTTPVersion,
     NoDOH,
     NoDOQ,
-    HTTPVersion,
     UDPMode,
     _check_status,
     _compute_times,
@@ -342,7 +342,7 @@ async def _read_exactly(sock, count, expiration):
     while count > 0:
         n = await sock.recv(count, _timeout(expiration))
         if n == b"":
-            raise EOFError('EOF')
+            raise EOFError("EOF")
         count = count - len(n)
         s = s + n
     return s
@@ -560,12 +560,15 @@ async def https(
     else:
         url = where
 
+    extensions = {}
     if bootstrap_address is None:
+        # pylint: disable=possibly-used-before-assignment
         parsed = urllib.parse.urlparse(url)
         if parsed.hostname is None:
             raise ValueError("no hostname in URL")
         if dns.inet.is_address(parsed.hostname):
             bootstrap_address = parsed.hostname
+            extensions["sni_hostname"] = parsed.hostname
         if parsed.port is not None:
             port = parsed.port
 
@@ -593,8 +596,10 @@ async def https(
 
     if not have_doh:
         raise NoDOH  # pragma: no cover
+    # pylint: disable=possibly-used-before-assignment
     if client and not isinstance(client, httpx.AsyncClient):
         raise ValueError("session parameter must be an httpx.AsyncClient")
+    # pylint: enable=possibly-used-before-assignment
 
     wire = q.to_wire()
     headers = {"accept": "application/dns-message"}
@@ -638,13 +643,25 @@ async def https(
                 }
             )
             response = await backend.wait_for(
-                the_client.post(url, headers=headers, content=wire), timeout
+                the_client.post(
+                    url,
+                    headers=headers,
+                    content=wire,
+                    extensions=extensions,
+                ),
+                timeout,
             )
         else:
             wire = base64.urlsafe_b64encode(wire).rstrip(b"=")
             twire = wire.decode()  # httpx does a repr() if we give it bytes
             response = await backend.wait_for(
-                the_client.get(url, headers=headers, params={"dns": twire}), timeout
+                the_client.get(
+                    url,
+                    headers=headers,
+                    params={"dns": twire},
+                    extensions=extensions,
+                ),
+                timeout,
             )
 
     # see https://tools.ietf.org/html/rfc8484#section-4.2.1 for info about DoH
@@ -687,6 +704,8 @@ async def _http3(
 
     url_parts = urllib.parse.urlparse(url)
     hostname = url_parts.hostname
+    if url_parts.port is not None:
+        port = url_parts.port
 
     q.id = 0
     wire = q.to_wire()
@@ -885,7 +904,6 @@ async def inbound_xfr(
             except dns.xfr.UseTCP:
                 if udp_mode == UDPMode.ONLY:
                     raise
-                pass
 
     s = await backend.make_socket(
         af, socket.SOCK_STREAM, 0, stuple, dtuple, _timeout(expiration)

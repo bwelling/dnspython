@@ -39,13 +39,14 @@ import dns.name
 import dns.nameserver
 import dns.query
 import dns.rcode
+import dns.rdata
 import dns.rdataclass
 import dns.rdatatype
 import dns.rdtypes.svcbbase
 import dns.reversename
 import dns.tsig
 
-if sys.platform == "win32":  #  pragma: no cover
+if sys.platform == "win32":  # pragma: no cover
     import dns.win32util
 
 
@@ -297,7 +298,7 @@ class Answer:
     def __len__(self) -> int:
         return self.rrset and len(self.rrset) or 0
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Any]:
         return self.rrset and iter(self.rrset) or iter(tuple())
 
     def __getitem__(self, i):

@@ -3,14 +3,19 @@
 What's New in dnspython
 =======================
 
-2.7.0 (in development)
+2.8.0 (in development)
 ----------------------
+
+* TBD
+
+2.7.0
+-----
 
 * dns.query.https() and dns.asyncquery.https() now support HTTP/3 and the http_version
   parameter may be used to specify which version to use.
 
 * If the cryptography module is installed, then dnspython will now create deterministic
-  ESDSA signatures by default.  Cryptography, if installed, must be at least version 43.
+  ECDSA signatures by default.  Cryptography, if installed, must be at least version 43.
   Thanks to Jakob Schlyter for adding the feature.
 
 * The RESINFO and WALLET RdataTypes are now supported.
@@ -34,7 +39,17 @@ What's New in dnspython
   options of a specified type, and an extended_errors() helper to retrieve the list
   of EDE options in a message (if any).
 
+* dns.message.make_response() now has a copy mode which controls how sections are
+  copied.  By default, a copy mode appropriate for the opcode is used.  This is
+  currently dns.message.CopyMode.QUESTION for all opcodes.
+
+* If an IP address is used as the hostname in a URL, the https query code now passes
+  the sni_hostname to httpx as this is required to get httpx to validate the certificate
+  and check for an IP subject alternative name.
+
 * The minimum supported aioquic version is now 1.0.0.
+
+* The minimum supported Python version is now 3.9.
 
 2.6.1
 -----

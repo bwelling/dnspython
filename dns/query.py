@@ -449,12 +449,15 @@ def https(
     else:
         url = where
 
+    extensions = {}
     if bootstrap_address is None:
+        # pylint: disable=possibly-used-before-assignment
         parsed = urllib.parse.urlparse(url)
         if parsed.hostname is None:
             raise ValueError("no hostname in URL")
         if dns.inet.is_address(parsed.hostname):
             bootstrap_address = parsed.hostname
+            extensions["sni_hostname"] = parsed.hostname
         if parsed.port is not None:
             port = parsed.port
 
@@ -525,12 +528,22 @@ def https(
                     "content-length": str(len(wire)),
                 }
             )
-            response = session.post(url, headers=headers, content=wire, timeout=timeout)
+            response = session.post(
+                url,
+                headers=headers,
+                content=wire,
+                timeout=timeout,
+                extensions=extensions,
+            )
         else:
             wire = base64.urlsafe_b64encode(wire).rstrip(b"=")
             twire = wire.decode()  # httpx does a repr() if we give it bytes
             response = session.get(
-                url, headers=headers, timeout=timeout, params={"dns": twire}
+                url,
+                headers=headers,
+                timeout=timeout,
+                params={"dns": twire},
+                extensions=extensions,
             )
 
     # see https://tools.ietf.org/html/rfc8484#section-4.2.1 for info about DoH
@@ -598,6 +611,8 @@ def _http3(
 
     url_parts = urllib.parse.urlparse(url)
     hostname = url_parts.hostname
+    if url_parts.port is not None:
+        port = url_parts.port
 
     q.id = 0
     wire = q.to_wire()
@@ -978,7 +993,7 @@ def _net_read(sock, count, expiration):
         try:
             n = sock.recv(count)
             if n == b"":
-                raise EOFError('EOF')
+                raise EOFError("EOF")
             count -= len(n)
             s += n
         except (BlockingIOError, ssl.SSLWantReadError):
@@ -1146,6 +1161,7 @@ def tcp(
         cm = _make_socket(af, socket.SOCK_STREAM, source)
     with cm as s:
         if not sock:
+            # pylint: disable=possibly-used-before-assignment
             _connect(s, destination, expiration)
         send_tcp(s, wire, expiration)
         (r, received_time) = receive_tcp(
@@ -1642,7 +1658,6 @@ def inbound_xfr(
             except dns.xfr.UseTCP:
                 if udp_mode == UDPMode.ONLY:
                     raise
-                pass
 
     with _make_socket(af, socket.SOCK_STREAM, source) as s:
         _connect(s, destination, expiration)
